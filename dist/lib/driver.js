@@ -176,15 +176,15 @@ function asyncCall(method, params) {
     log_1.logger.info(`[${method}] Calling (async): ${JSON.stringify(params)}`);
     return Promise.resolve(exports.asteroid.apply(method, params).result)
         .catch((err) => {
-        log_1.logger.error(`[${method}] Error:`, err);
-        throw err; // throw after log to stop async chain
-    })
+            log_1.logger.error(`[${method}] Error:`, err);
+            throw err; // throw after log to stop async chain
+        })
         .then((result) => {
-        (result)
-            ? log_1.logger.debug(`[${method}] Success: ${JSON.stringify(result)}`)
-            : log_1.logger.debug(`[${method}] Success`);
-        return result;
-    });
+            (result)
+                ? log_1.logger.debug(`[${method}] Success: ${JSON.stringify(result)}`)
+                : log_1.logger.debug(`[${method}] Success`);
+            return result;
+        });
 }
 exports.asyncCall = asyncCall;
 /**
@@ -216,15 +216,15 @@ exports.callMethod = callMethod;
 function cacheCall(method, key) {
     return methodCache.call(method, key)
         .catch((err) => {
-        log_1.logger.error(`[${method}] Error:`, err);
-        throw err; // throw after log to stop async chain
-    })
+            log_1.logger.error(`[${method}] Error:`, err);
+            throw err; // throw after log to stop async chain
+        })
         .then((result) => {
-        (result)
-            ? log_1.logger.debug(`[${method}] Success: ${JSON.stringify(result)}`)
-            : log_1.logger.debug(`[${method}] Success`);
-        return result;
-    });
+            (result)
+                ? log_1.logger.debug(`[${method}] Success: ${JSON.stringify(result)}`)
+                : log_1.logger.debug(`[${method}] Success`);
+            return result;
+        });
 }
 exports.cacheCall = cacheCall;
 // LOGIN AND SUBSCRIBE TO ROOMS
@@ -259,13 +259,13 @@ function login(credentials = {
     // }
     return login
         .then((loggedInUserId) => {
-        exports.userId = loggedInUserId;
-        return loggedInUserId;
-    })
+            exports.userId = loggedInUserId;
+            return loggedInUserId;
+        })
         .catch((err) => {
-        log_1.logger.info('[login] Error:', err);
-        throw err; // throw after log to stop async chain
-    });
+            log_1.logger.info('[login] Error:', err);
+            throw err; // throw after log to stop async chain
+        });
 }
 exports.login = login;
 /**
@@ -277,9 +277,9 @@ exports.login = login;
 function logout() {
     return exports.asteroid.logout()
         .catch((err) => {
-        log_1.logger.error('[Logout] Error:', err);
-        throw err; // throw after log to stop async chain
-    });
+            log_1.logger.error('[Logout] Error:', err);
+            throw err; // throw after log to stop async chain
+        });
 }
 exports.logout = logout;
 /**
@@ -298,9 +298,9 @@ function subscribe(topic, roomId) {
         exports.subscriptions.push(subscription);
         return subscription.ready
             .then((id) => {
-            log_1.logger.info(`[subscribe] Stream ready: ${id}`);
-            resolve(subscription);
-        });
+                log_1.logger.info(`[subscribe] Stream ready: ${id}`);
+                resolve(subscription);
+            });
     });
 }
 exports.subscribe = subscribe;
@@ -344,9 +344,9 @@ exports.unsubscribeAll = unsubscribeAll;
 function subscribeToMessages() {
     return subscribe(_messageCollectionName, _messageStreamName)
         .then((subscription) => {
-        exports.messages = exports.asteroid.getCollection(_messageCollectionName);
-        return subscription;
-    });
+            exports.messages = exports.asteroid.getCollection(_messageCollectionName);
+            return subscription;
+        });
 }
 exports.subscribeToMessages = subscribeToMessages;
 /**
@@ -386,7 +386,7 @@ function reactToMessages(callback) {
         if (changedMessageQuery.result && changedMessageQuery.result.length > 0) {
             const changedMessage = changedMessageQuery.result[0];
             if (Array.isArray(changedMessage.args)) {
-                log_1.logger.info(`[received] Message in room ${changedMessage.args[0].rid}`);
+                log_1.logger.info(`[received] Message in room ${changedMessage.args[0][0].rid}`);
                 callback(null, changedMessage.args[0], changedMessage.args[1]);
             }
             else {
@@ -430,17 +430,18 @@ function respondToMessages(callback, options = {}) {
         config.rooms.length > 0) {
         promise = joinRooms(config.rooms)
             .catch((err) => {
-            log_1.logger.error(`[joinRooms] Failed to join configured rooms (${config.rooms.join(', ')}): ${err.message}`);
-        });
+                log_1.logger.error(`[joinRooms] Failed to join configured rooms (${config.rooms.join(', ')}): ${err.message}`);
+            });
     }
     exports.lastReadTime = new Date(); // init before any message read
     reactToMessages((err, message, meta) => __awaiter(this, void 0, void 0, function* () {
+        var internalMessage = message[0]
         if (err) {
             log_1.logger.error(`[received] Unable to receive: ${err.message}`);
             callback(err); // bubble errors back to adapter
         }
         // Ignore bot's own messages
-        if (message.u._id === exports.userId)
+        if (internalMessage.u._id === exports.userId)
             return;
         // Ignore DMs unless configured not to
         const isDM = meta.roomType === 'd';
@@ -454,21 +455,21 @@ function respondToMessages(callback, options = {}) {
         if (!config.allPublic && !isDM && !meta.roomParticipant)
             return;
         // Set current time for comparison to incoming
-        let currentReadTime = new Date(message.ts.$date);
+        let currentReadTime = new Date(internalMessage.ts.$date);
         // Ignore edited messages if configured to
-        if (!config.edited && message.editedAt)
+        if (!config.edited && internalMessage.editedAt)
             return;
         // Set read time as time of edit, if message is edited
-        if (message.editedAt)
-            currentReadTime = new Date(message.editedAt.$date);
+        if (internalMessage.editedAt)
+            currentReadTime = new Date(internalMessage.editedAt.$date);
         // Ignore messages in stream that aren't new
         if (currentReadTime <= exports.lastReadTime)
             return;
         // At this point, message has passed checks and can be responded to
-        log_1.logger.info(`[received] Message ${message._id} from ${message.u.username}`);
+        log_1.logger.info(`[received] Message ${internalMessage._id} from ${internalMessage.u.username}`);
         exports.lastReadTime = currentReadTime;
         // Processing completed, call callback to respond to message
-        callback(null, message, meta);
+        callback(null, internalMessage, meta);
     }));
     return promise;
 }
